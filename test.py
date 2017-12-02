@@ -1,6 +1,7 @@
 import logging
 import gensim
 import time
+import spacy
 
 # start timing
 start = time.time()
@@ -13,7 +14,7 @@ model = gensim.models.KeyedVectors.load_word2vec_format('./model/GoogleNews-vect
 # model = gensim.models.KeyedVectors.load_word2vec_format('./model/freebase-vectors-skipgram1000-en.bin', binary=True)
 
 
-# sample function usage:
+# sample gensim KeyValue function usage:
 print(model.word_vec("office"))
 print(model.doesnt_match("man woman child kitchen".split()))
 
@@ -36,6 +37,15 @@ print(model.most_similar(positive=['woman', 'king'], negative=['man'], topn=1))
 # model.evaluate_word_pairs(os.path.join(module_path, 'test_data','wordsim353.tsv'))
 # expected output: [('mother', 0.61849487), ('wife', 0.57972813), ('daughter', 0.56296098)]
 
+# sample spacy token manipulation
+sentence = "This is an open field west of a white house, with a boarded front door. There is a small mailbox here."
+nlp = spacy.load('en')
+doc = nlp(sentence)
+for token in doc:
+    print(token.text, token.lemma_, token.pos_, token.tag_, token.dep_,
+          token.shape_, token.is_alpha, token.is_stop)
+
+
 
 more_examples = ["he his she", "big bigger bad", "going went being"]
 for example in more_examples:
@@ -43,7 +53,6 @@ for example in more_examples:
     predicted = model.most_similar([x, b], [a])[0][0]
     # print(predicted)
     print ('{} : {} :: {} : [{}]'.format(a, b, x, predicted))
-
 
 
 # end timing and print out needed time
