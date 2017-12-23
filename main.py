@@ -87,7 +87,7 @@ def possible_actions(sentence):
         if word not in dictionary:
             dictionary[word] = get_verbs_for_noun(word)
 
-    # loop through dictionary to creat action list
+    # loop through dictionary to create action list
     action_pair = []
     for key, values in dictionary.items():
         [action_pair.append(value + " " + key) for value in values]
