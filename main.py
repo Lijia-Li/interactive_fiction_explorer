@@ -18,13 +18,13 @@ model = gensim.models.KeyedVectors.load_word2vec_format('./model/GoogleNews-vect
 # model = gensim.models.KeyedVectors.load_word2vec_format('./model/freebase-vectors-skipgram1000-en.bin', binary=True)
 
 
-# helper function that compute the average sigma (vector difference of word pair) of a list of given conons
-def get_ave_sigma(conons):
+# helper function that compute the average sigma (vector difference of word pair) of a list of given canon pairs
+def get_ave_sigma(canons):
     sigma = 0
-    for pair in conons:
+    for pair in canons:
         v, n = pair.split()
         sigma += model.word_vec(v) - model.word_vec(n)
-    ave_sigma = (1 / len(conons)) * sigma
+    ave_sigma = (1 / len(canons)) * sigma
     return ave_sigma
 
 
@@ -32,8 +32,8 @@ def get_ave_sigma(conons):
 def get_verbs_for_noun(noun):
     # prepare tools
     wnl = nltk.stem.WordNetLemmatizer()
-    conons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
-    sigma = get_ave_sigma(conons)
+    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
+    sigma = get_ave_sigma(canons)
 
     # list of common used verbs
     navigation_verbs = ["north", "south", "east", "west", "northeast", "southeast", "southwest", "northwest", "up",
@@ -62,10 +62,10 @@ def get_verbs_for_noun(noun):
 
 # return a list of adjectives that describe the given noun
 def get_adjectives_for_noun(noun):
-    conons = list(filter(None, [line.rstrip() for line in open('./word_lists/noun_adj_pair.txt')]))
-    #     conons = ["knife sharp", "light bright", "ice cold", "fire burning", "desert dry", "sky blue", "night dark",
+    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/noun_adj_pair.txt')]))
+    #     canons = ["knife sharp", "light bright", "ice cold", "fire burning", "desert dry", "sky blue", "night dark",
     #                 "rope long"]
-    sigma = get_ave_sigma(conons)
+    sigma = get_ave_sigma(canons)
     model_adj = model.most_similar([sigma, noun], [], topn=10)
     word2vec_adj = []
     for adj in model_adj:
@@ -79,7 +79,6 @@ def possible_actions(sentence):
     nlp = spacy.load('en')
     doc = nlp(sentence)
     wnl = nltk.stem.WordNetLemmatizer()
-    conons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
 
     # create dictionary in the form [noun: verbs]
     dictionary = {}
@@ -96,8 +95,8 @@ def possible_actions(sentence):
 
 
 def get_tools_for_verb(verb):
-    conons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
-    sigma = get_ave_sigma(conons)
+    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
+    sigma = get_ave_sigma(canons)
 
     model_tools = model.most_similar([verb], [sigma], topn=10)
     word2vec_tools = []
