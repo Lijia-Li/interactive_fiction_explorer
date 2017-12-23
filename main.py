@@ -140,6 +140,5 @@ def main():
     toc = time.time()
     print("total time spend:", toc - tic, "s")
 
-    # if __name__ == "__main__": main()
-
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
