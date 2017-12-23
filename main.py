@@ -90,7 +90,8 @@ def possible_actions(sentence):
     # loop through dictionary to create action list
     action_pair = []
     for key, values in dictionary.items():
-        [action_pair.append(value + " " + key) for value in values]
+        for value in values:
+            action_pair.append(value + " " + key)
     return action_pair
 
 
@@ -120,12 +121,14 @@ def main():
 
     # get_verbs_for_noun tests
     print("-" * 5, "get_verbs_for_noun function tests", "-" * 5)
-    [print(noun, ":", get_verbs_for_noun(noun)) for noun in test_nouns]
+    for noun in test_nouns:
+        print(noun, ":", get_verbs_for_noun(noun))
     print()
 
     # get_adjectives_for_noun tests
     print("-" * 5, "get_adjectives_for_noun function tests", "-" * 5)
-    [print(noun, ":", get_adjectives_for_noun(noun)) for noun in test_nouns]
+    for noun in test_nouns:
+        print(noun, ":", get_adjectives_for_noun(noun))
 
     # possible_actions tests
     for sentence in sentences:
@@ -134,7 +137,8 @@ def main():
         print(possible_actions(sentence))
 
     # get_tools_for_verb tests
-    [print(verb, ":", get_tools_for_verb(verb)) for verb in test_verbs]
+    for verb in test_verbs:
+        print(verb, ":", get_tools_for_verb(verb))
 
     toc = time.time()
     print("total time spend:", toc - tic, "s")
