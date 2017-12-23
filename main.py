@@ -16,6 +16,7 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 
 # loading model
 model = gensim.models.KeyedVectors.load_word2vec_format('./model/GoogleNews-vectors-negative300.bin', binary=True)
+
 # model = gensim.models.KeyedVectors.load_word2vec_format('./model/freebase-vectors-skipgram1000-en.bin', binary=True)
 
 
@@ -37,8 +38,10 @@ def get_verbs_for_noun(noun):
     sigma = get_ave_sigma(canons)
 
     # list of common used verbs
-    navigation_verbs = ["north", "south", "east", "west", "northeast", "southeast", "southwest", "northwest", "up",
-                        "down", "enter", "exit"]
+    navigation_verbs = [
+        "north", "south", "east", "west", "northeast", "southeast", "southwest", "northwest", "up", "down", "enter",
+        "exit"
+    ]
     essential_manipulation_verbs = ["get", "drop", "push", "pull", "open", "close"]
     verb_list = list(filter(None, [line.rstrip() for line in open('./word_lists/top_1000_verbs.txt')]))
 
@@ -117,7 +120,6 @@ def main():
     s3 = "This is a dimly lit forest, with large trees all around.  One particularly large tree with some low branches stands here."
     sentences = [s, s1, s2, s3]
 
-
     # run samples
 
     # get_verbs_for_noun tests
@@ -143,6 +145,7 @@ def main():
 
     toc = time.time()
     print("total time spend:", toc - tic, "s")
+
 
 if __name__ == "__main__":
     main()
