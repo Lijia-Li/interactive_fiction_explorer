@@ -1,8 +1,9 @@
 import logging
-import gensim
 import time
-import spacy
+
+import gensim
 import nltk.stem
+import spacy
 
 # start timing
 tic = time.time()
