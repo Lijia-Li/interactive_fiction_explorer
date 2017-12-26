@@ -1,4 +1,3 @@
-import logging
 import time
 
 import gensim
@@ -7,9 +6,6 @@ import spacy
 
 # download wordnet
 nltk.download('wordnet')
-
-# Login
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 # loading model
 model = gensim.models.KeyedVectors.load_word2vec_format('./model/GoogleNews-vectors-negative300.bin', binary=True)
