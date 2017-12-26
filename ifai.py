@@ -48,7 +48,6 @@ def get_verbs_for_noun(model, noun):
         verb_list.extend(line.strip() for line in fd.readlines())
 
     # prepare tools
-    wnl = nltk.stem.WordNetLemmatizer()
     sigma = get_ave_sigma(model, canons)
 
     # list of common used verbs
@@ -61,6 +60,7 @@ def get_verbs_for_noun(model, noun):
     # extract words from word2vec model & append lemmatized word to list
     model_verb = model.most_similar([sigma, noun], [], topn=10)
     word2vec_words = []
+    wnl = nltk.stem.WordNetLemmatizer()
     for verb in model_verb:
         word2vec_words.append(wnl.lemmatize(str(verb[0].lower())))
 
