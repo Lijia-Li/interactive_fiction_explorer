@@ -5,9 +5,6 @@ import gensim
 import nltk.stem
 import spacy
 
-# start timing
-tic = time.time()
-
 # download wordnet
 nltk.download('wordnet')
 
@@ -111,6 +108,9 @@ def get_tools_for_verb(verb):
 
 
 def main():
+    # start timing
+    tic = time.time()
+
     # prepare samples
     test_nouns = ["book", "sword", "horse", "key"]
     test_verbs = ["climb", "use", "open", "lift", "kill", "murder", "drive", "ride", "cure", "type", "sing"]
