@@ -1,27 +1,35 @@
-import logging
 import time
+from os.path import exists as file_exists, splitext as split_ext
 
 import gensim
 import nltk.stem
+import numpy as np
 import spacy
-
-# start timing
-tic = time.time()
 
 # download wordnet
 nltk.download('wordnet')
 
-# Login
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+DEFAULT_MODEL_PATH = 'models/GoogleNews-vectors-negative300.bin'
 
-# loading model
-model = gensim.models.KeyedVectors.load_word2vec_format('./model/GoogleNews-vectors-negative300.bin', binary=True)
 
-# model = gensim.models.KeyedVectors.load_word2vec_format('./model/freebase-vectors-skipgram1000-en.bin', binary=True)
+def load_model(model_path=None):
+    if model_path is None:
+        model_path = DEFAULT_MODEL_PATH
+    cache_path = split_ext(model_path)[0] + '.cache'
+    if file_exists(cache_path):
+        # use the cached version if it exists
+        model = gensim.models.KeyedVectors.load(cache_path)
+    else:
+        # otherwise, load from word2vec binary, but cache the result
+        model = gensim.models.KeyedVectors.load_word2vec_format(model_path, binary=True)
+        model.init_sims()
+        # ignore=[] means ignore nothing (ie. save all pre-computations)
+        model.save(cache_path, ignore=[])
+    return model
 
 
 # helper function that compute the average sigma (vector difference of word pair) of a list of given canon pairs
-def get_ave_sigma(canons):
+def get_ave_sigma(model, canons):
     sigma = 0
     for pair in canons:
         v, n = pair.split()
@@ -31,11 +39,17 @@ def get_ave_sigma(canons):
 
 
 # return a list of lemmatized verbs that the noun can afford
-def get_verbs_for_noun(noun):
+def get_verbs_for_noun(model, noun):
+    # load word lists
+    canons = []
+    with open('word_lists/verb_noun_pair.txt') as fd:
+        canons.extend(line.strip() for line in fd.readlines())
+    verb_list = []
+    with open('./word_lists/top_1000_verbs.txt') as fd:
+        verb_list.extend(line.strip() for line in fd.readlines())
+
     # prepare tools
-    wnl = nltk.stem.WordNetLemmatizer()
-    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
-    sigma = get_ave_sigma(canons)
+    sigma = get_ave_sigma(model, canons)
 
     # list of common used verbs
     navigation_verbs = [
@@ -43,11 +57,11 @@ def get_verbs_for_noun(noun):
         "exit"
     ]
     essential_manipulation_verbs = ["get", "drop", "push", "pull", "open", "close"]
-    verb_list = list(filter(None, [line.rstrip() for line in open('./word_lists/top_1000_verbs.txt')]))
 
     # extract words from word2vec model & append lemmatized word to list
     model_verb = model.most_similar([sigma, noun], [], topn=10)
     word2vec_words = []
+    wnl = nltk.stem.WordNetLemmatizer()
     for verb in model_verb:
         word2vec_words.append(wnl.lemmatize(str(verb[0].lower())))
 
@@ -65,11 +79,11 @@ def get_verbs_for_noun(noun):
 
 
 # return a list of adjectives that describe the given noun
-def get_adjectives_for_noun(noun):
+def get_adjectives_for_noun(model, noun):
     canons = list(filter(None, [line.rstrip() for line in open('./word_lists/noun_adj_pair.txt')]))
     #     canons = ["knife sharp", "light bright", "ice cold", "fire burning", "desert dry", "sky blue", "night dark",
     #                 "rope long"]
-    sigma = get_ave_sigma(canons)
+    sigma = get_ave_sigma(model, canons)
     model_adj = model.most_similar([sigma, noun], [], topn=10)
     word2vec_adj = []
     for adj in model_adj:
@@ -78,7 +92,7 @@ def get_adjectives_for_noun(noun):
 
 
 # return a list of possible actions by compute affordable actions on nouns in the given sentence
-def possible_actions(sentence):
+def possible_actions(model, sentence):
     # prepare tools
     nlp = spacy.load('en')
     doc = nlp(sentence)
@@ -89,7 +103,7 @@ def possible_actions(sentence):
     for chunk in doc.noun_chunks:
         word = wnl.lemmatize(chunk.root.text)
         if word not in dictionary:
-            dictionary[word] = get_verbs_for_noun(word)
+            dictionary[word] = get_verbs_for_noun(model, word)
 
     # loop through dictionary to create action list
     action_pair = []
@@ -99,9 +113,11 @@ def possible_actions(sentence):
     return action_pair
 
 
-def get_tools_for_verb(verb):
-    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
-    sigma = get_ave_sigma(canons)
+def get_tools_for_verb(model, verb):
+    canons = []
+    with open('./word_lists/verb_noun_pair.txt') as fd:
+        canons.extend(line.strip() for line in fd.readlines())
+    sigma = get_ave_sigma(model, canons)
 
     model_tools = model.most_similar([verb], [sigma], topn=10)
     word2vec_tools = []
@@ -110,7 +126,23 @@ def get_tools_for_verb(verb):
     return word2vec_tools
 
 
+def rank_manipulability(model, nouns):
+    x_axis = model.word_vec("forest") - model.word_vec("tree")
+    dic = {}
+    for noun in nouns:
+        if noun not in dic:
+            vec = model.word_vec(noun)
+            dic[noun] = np.dot(vec, x_axis)
+    sorted_dic = sorted(dic.items(), key=(lambda kv: kv[1]))
+    return sorted_dic
+
+
 def main():
+    model = load_model(DEFAULT_MODEL_PATH)
+
+    # start timing
+    tic = time.time()
+
     # prepare samples
     test_nouns = ["book", "sword", "horse", "key"]
     test_verbs = ["climb", "use", "open", "lift", "kill", "murder", "drive", "ride", "cure", "type", "sing"]
@@ -125,23 +157,23 @@ def main():
     # get_verbs_for_noun tests
     print("-" * 5, "get_verbs_for_noun function tests", "-" * 5)
     for noun in test_nouns:
-        print(noun, ":", get_verbs_for_noun(noun))
+        print(noun, ":", get_verbs_for_noun(model, noun))
     print()
 
     # get_adjectives_for_noun tests
     print("-" * 5, "get_adjectives_for_noun function tests", "-" * 5)
     for noun in test_nouns:
-        print(noun, ":", get_adjectives_for_noun(noun))
+        print(noun, ":", get_adjectives_for_noun(model, noun))
 
     # possible_actions tests
     for sentence in sentences:
         print()
         print(sentence)
-        print(possible_actions(sentence))
+        print(possible_actions(model, sentence))
 
     # get_tools_for_verb tests
     for verb in test_verbs:
-        print(verb, ":", get_tools_for_verb(verb))
+        print(verb, ":", get_tools_for_verb(model, verb))
 
     toc = time.time()
     print("total time spend:", toc - tic, "s")
