@@ -3,6 +3,7 @@ from os.path import exists as file_exists, splitext as split_ext
 
 import gensim
 import nltk.stem
+import numpy as np
 import spacy
 
 # download wordnet
@@ -123,6 +124,17 @@ def get_tools_for_verb(model, verb):
     for tool in model_tools:
         word2vec_tools.append(tool[0])
     return word2vec_tools
+
+
+def rank_manipulability(model, nouns):
+    x_axis = model.word_vec("forest") - model.word_vec("tree")
+    dic = {}
+    for noun in nouns:
+        if noun not in dic:
+            vec = model.word_vec(noun)
+            dic[noun] = np.dot(vec, x_axis)
+    sorted_dic = sorted(dic.items(), key=(lambda kv: kv[1]))
+    return sorted_dic
 
 
 def main():
