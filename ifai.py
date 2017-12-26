@@ -39,9 +39,16 @@ def get_ave_sigma(model, canons):
 
 # return a list of lemmatized verbs that the noun can afford
 def get_verbs_for_noun(model, noun):
+    # load word lists
+    canons = []
+    with open('word_lists/verb_noun_pair.txt') as fd:
+        canons.extend(line.strip() for line in fd.readlines())
+    verb_list = []
+    with open('./word_lists/top_1000_verbs.txt') as fd:
+        verb_list.extend(line.strip() for line in fd.readlines())
+
     # prepare tools
     wnl = nltk.stem.WordNetLemmatizer()
-    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
     sigma = get_ave_sigma(model, canons)
 
     # list of common used verbs
@@ -50,7 +57,6 @@ def get_verbs_for_noun(model, noun):
         "exit"
     ]
     essential_manipulation_verbs = ["get", "drop", "push", "pull", "open", "close"]
-    verb_list = list(filter(None, [line.rstrip() for line in open('./word_lists/top_1000_verbs.txt')]))
 
     # extract words from word2vec model & append lemmatized word to list
     model_verb = model.most_similar([sigma, noun], [], topn=10)
@@ -107,7 +113,9 @@ def possible_actions(model, sentence):
 
 
 def get_tools_for_verb(model, verb):
-    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/verb_noun_pair.txt')]))
+    canons = []
+    with open('./word_lists/verb_noun_pair.txt') as fd:
+        canons.extend(line.strip() for line in fd.readlines())
     sigma = get_ave_sigma(model, canons)
 
     model_tools = model.most_similar([verb], [sigma], topn=10)
