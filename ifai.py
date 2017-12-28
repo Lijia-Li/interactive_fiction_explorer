@@ -81,8 +81,6 @@ def get_verbs_for_noun(model, noun):
 # return a list of adjectives that describe the given noun
 def get_adjectives_for_noun(model, noun):
     canons = list(filter(None, [line.rstrip() for line in open('./word_lists/noun_adj_pair.txt')]))
-    #     canons = ["knife sharp", "light bright", "ice cold", "fire burning", "desert dry", "sky blue", "night dark",
-    #                 "rope long"]
     sigma = get_ave_sigma(model, canons)
     model_adj = model.most_similar([sigma, noun], [], topn=10)
     word2vec_adj = []
@@ -97,21 +95,18 @@ def possible_actions(model, sentence):
     nlp = spacy.load('en')
     doc = nlp(sentence)
     wnl = nltk.stem.WordNetLemmatizer()
+    l = []
+    action_pair = []
 
-    # create dictionary in the form [noun: verbs]
-    dictionary = {}
     for chunk in doc.noun_chunks:
         word = wnl.lemmatize(chunk.root.text)
-        if word not in dictionary:
-            dictionary[word] = get_verbs_for_noun(model, word)
-
-    # loop through dictionary to create action list
-    action_pair = []
-    for key, values in dictionary.items():
-        for value in values:
-            action_pair.append(value + " " + key)
+        l.append(word)
+    sorted_list = rank_manipulability(model, l)
+    for word in sorted_list:
+        verbs = get_verbs_for_noun(model, word[0])
+        for verb in verbs:
+            action_pair.append(verb + " " + word[0])
     return action_pair
-
 
 def get_tools_for_verb(model, verb):
     canons = []
@@ -133,8 +128,8 @@ def rank_manipulability(model, nouns):
         if noun not in dic:
             vec = model.word_vec(noun)
             dic[noun] = np.dot(vec, x_axis)
-    sorted_dic = sorted(dic.items(), key=(lambda kv: kv[1]))
-    return sorted_dic
+    sorted_list = sorted(dic.items(), key=(lambda kv: kv[1]))
+    return sorted_list
 
 
 def main():
