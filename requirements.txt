@@ -1,0 +1,7 @@
+bokeh
+gensim
+jupyter
+nltk
+numpy
+pandas
+spacy
