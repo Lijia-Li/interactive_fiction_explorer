@@ -5,6 +5,8 @@ import gensim
 import nltk.stem
 import numpy as np
 import spacy
+import requests
+import json
 
 # download wordnet
 nltk.download('wordnet')
@@ -117,7 +119,7 @@ def get_tools_for_verb(model, verb):
     model_tools = model.most_similar([verb], [sigma], topn=10)
     word2vec_tools = []
     for tool in model_tools:
-        word2vec_tools.append(tool[0])
+        word2vec_tools.append(tool[0])ß
     return word2vec_tools
 
 
@@ -131,6 +133,19 @@ def rank_manipulability(model, nouns):
     sorted_list = sorted(dic.items(), key=(lambda kv: kv[1]))
     return sorted_list
 
+def json_pprint(dict):
+    print(json.dumps(dict, sort_keys=True, indent=4))
+    return
+
+def get_used_for(noun):
+    afford_list = []
+    obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun + '&rel=/r/UsedFor').json()
+    wnl = nltk.stem.WordNetLemmatizer()
+    for edge in obj["edges"]:
+        word = wnl.lemmatize(str(edge["end"]["label"]), 'v')
+        if " " not in word and word not in afford_list:
+                afford_list.append(word)
+    return afford_list
 
 def main():
     model = load_model(DEFAULT_MODEL_PATH)
@@ -145,7 +160,8 @@ def main():
     s1 = "This is an open field west of a white house, with a boarded front door. There is a small mailbox here."
     s2 = "This is a forest, with trees in all directions around you."
     s3 = "This is a dimly lit forest, with large trees all around.  One particularly large tree with some low branches stands here."
-    sentences = [s, s1, s2, s3]
+    s4 = "You open the mailbox, revealing a small leaflet."
+    sentences = [s, s1, s2, s3, s4]
 
     # run samples
 
@@ -168,7 +184,14 @@ def main():
 
     # get_tools_for_verb tests
     for verb in test_verbs:
+        print()
+        print("-" * 5, "get_tools_for_verb function test", "-" * 5)
         print(verb, ":", get_tools_for_verb(model, verb))
+
+    # get_used_for tests
+    print("-" * 5, "get_used_for test", "-" * 5)
+    for noun in test_nouns:
+        print(get_used_for(noun))
 
     toc = time.time()
     print("total time spend:", toc - tic, "s")
