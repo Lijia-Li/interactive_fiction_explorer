@@ -110,6 +110,7 @@ def possible_actions(model, sentence):
             action_pair.append(verb + " " + word[0])
     return action_pair
 
+# get possible tools to realize the intended action
 def get_tools_for_verb(model, verb):
     canons = []
     with open('./word_lists/verb_noun_pair.txt') as fd:
@@ -119,10 +120,10 @@ def get_tools_for_verb(model, verb):
     model_tools = model.most_similar([verb], [sigma], topn=10)
     word2vec_tools = []
     for tool in model_tools:
-        word2vec_tools.append(tool[0])ß
+        word2vec_tools.append(tool[0])
     return word2vec_tools
 
-
+# rank inputs nouns from most manipulative to least manipulative
 def rank_manipulability(model, nouns):
     x_axis = model.word_vec("forest") - model.word_vec("tree")
     dic = {}
@@ -133,19 +134,77 @@ def rank_manipulability(model, nouns):
     sorted_list = sorted(dic.items(), key=(lambda kv: kv[1]))
     return sorted_list
 
-def json_pprint(dict):
-    print(json.dumps(dict, sort_keys=True, indent=4))
-    return
-
-def get_used_for(noun):
-    afford_list = []
-    obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun + '&rel=/r/UsedFor').json()
+# get "capable of" & "used for" relations from ConceptNet, return a list of possible verbs with weight
+def get_possible_verbs(noun):
+    v_dic = {}
     wnl = nltk.stem.WordNetLemmatizer()
-    for edge in obj["edges"]:
-        word = wnl.lemmatize(str(edge["end"]["label"]), 'v')
-        if " " not in word and word not in afford_list:
-                afford_list.append(word)
-    return afford_list
+
+    rel_list = ["CapableOf", "UsedFor"]
+    for rel in rel_list:
+        obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun + '&rel=/r/' + rel).json()
+        for edge in obj["edges"]:
+
+            # get the possible verb
+            word = edge["end"]["label"].split()[0]
+            word = wnl.lemmatize(word, 'v')
+
+            # add to dic with weight
+            if word not in v_dic:
+                v_dic[word] = edge["weight"]
+            if word in v_dic:
+                v_dic[word] += edge["weight"]
+
+    sorted_list = sorted(v_dic.items(), key=(lambda kv: kv[1]), reverse=True)
+    return sorted_list
+
+# return a list of adj best describe the noun from ConceptNet with "has property" Relation
+def get_possible_adj(noun):
+    v_dic = {}
+    wnl = nltk.stem.WordNetLemmatizer()
+
+    rel_list = ["HasProperty"]
+    for rel in rel_list:
+        obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun + '&rel=/r/' + rel).json()
+        for edge in obj["edges"]:
+
+            # get the possible verb
+            word = edge["end"]["label"].split()[0]
+            word = wnl.lemmatize(word, 'v')
+
+            # add to dic with weight
+            if word not in v_dic:
+                v_dic[word] = edge["weight"]
+            if word in v_dic:
+                v_dic[word] += edge["weight"]
+
+    sorted_list = sorted(v_dic.items(), key=(lambda kv: kv[1]), reverse=True)
+    return sorted_list
+
+# return a list of synonym of the noun from ConceptNet (not ideal)
+def get_synonym(word):
+    syn_list = []
+    rel_list = ["Synonym", "IsA"]
+    for rel in rel_list:
+        obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + word.replace(" ", "_") + '&rel=/r/' + rel).json()
+        for edge in obj["edges"]:
+            if edge["end"]["language"] == 'en':
+                syn = edge["end"]["label"]
+                if syn not in syn_list and syn != word:
+                    syn_list.append(syn)
+    return syn_list
+
+# return a list of locations that the noun possibly located according to ConceptNet's relations ("at location", "locate near", "part of"
+def get_loca(noun):
+    loca_list = []
+    rel_list = ["AtLocation", "LocatedNear", "PartOf"]
+    for rel in rel_list:
+        obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun.replace(" ", "_") + '&rel=/r/' + rel).json()
+        for edge in obj["edges"]:
+            if edge["end"]["language"] == 'en':
+                syn = edge["end"]["label"]
+                if syn not in loca_list and syn != noun:
+                    loca_list.append(syn)
+    return loca_list
 
 def main():
     model = load_model(DEFAULT_MODEL_PATH)
