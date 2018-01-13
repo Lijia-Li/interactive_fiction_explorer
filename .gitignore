@@ -1,8 +1,8 @@
 .idea
 .ipynb_checkpoints
-model
+models
 resources
 fun_output
 new_test.py
 __pycache__
-
+requests
