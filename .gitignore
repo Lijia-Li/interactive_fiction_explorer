@@ -1,8 +1,10 @@
 .idea
-.ipynb_checkpoints
-models
-resources
-fun_output
 new_test.py
-__pycache__
+models
 requests
+__pycache__
+fun_output
+resources
+.ipynb_checkpoints
+
+technical document
