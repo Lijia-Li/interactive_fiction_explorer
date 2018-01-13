@@ -3,13 +3,14 @@ from os.path import exists as file_exists, splitext as split_ext
 
 import gensim
 import nltk.stem
+from nltk.corpus import wordnet as wn
 import numpy as np
 import spacy
 import requests
-import json
 
 # download wordnet
 nltk.download('wordnet')
+
 
 DEFAULT_MODEL_PATH = 'models/GoogleNews-vectors-negative300.bin'
 
@@ -65,7 +66,11 @@ def get_verbs_for_noun(model, noun):
     word2vec_words = []
     wnl = nltk.stem.WordNetLemmatizer()
     for verb in model_verb:
-        word2vec_words.append(wnl.lemmatize(str(verb[0].lower())))
+        verb = wnl.lemmatize(str(verb[0].lower()))
+
+        # use wordnet to assert verb (can be a verb)
+        if wn.morphy(verb, wn.VERB):
+            word2vec_words.append(verb)
 
     # set operations
     affordant_verbs = list(set(verb_list) & set(word2vec_words))
@@ -135,30 +140,35 @@ def rank_manipulability(model, nouns):
     return sorted_list
 
 # get "capable of" & "used for" relations from ConceptNet, return a list of possible verbs with weight
-def get_possible_verbs(noun):
+def get_verbs_cn(noun):
     v_dic = {}
     wnl = nltk.stem.WordNetLemmatizer()
 
+    # query conceptNet
     rel_list = ["CapableOf", "UsedFor"]
     for rel in rel_list:
         obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun + '&rel=/r/' + rel).json()
         for edge in obj["edges"]:
 
             # get the possible verb
-            word = edge["end"]["label"].split()[0]
-            word = wnl.lemmatize(word, 'v')
+            verb = edge["end"]["label"].split()[0]
+            verb = wnl.lemmatize(verb, 'v')
 
-            # add to dic with weight
-            if word not in v_dic:
-                v_dic[word] = edge["weight"]
-            if word in v_dic:
-                v_dic[word] += edge["weight"]
+            # use wordnet to assert verb (can be a verb)
+            if wn.morphy(verb, wn.VERB):
+
+                # add to dic with weight
+                if verb not in v_dic:
+                    v_dic[verb] = edge["weight"]
+                if verb in v_dic:
+                    v_dic[verb] += edge["weight"]
+
 
     sorted_list = sorted(v_dic.items(), key=(lambda kv: kv[1]), reverse=True)
-    return sorted_list
+    return sorted_list[:10]
 
 # return a list of adj best describe the noun from ConceptNet with "has property" Relation
-def get_possible_adj(noun):
+def get_adjectives_cn(noun):
     v_dic = {}
     wnl = nltk.stem.WordNetLemmatizer()
 
@@ -180,9 +190,16 @@ def get_possible_adj(noun):
     sorted_list = sorted(v_dic.items(), key=(lambda kv: kv[1]), reverse=True)
     return sorted_list
 
-# return a list of synonym of the noun from ConceptNet (not ideal)
-def get_synonym(word):
+# return a list of synonym of the noun from ConceptNet and wordnet (not ideal)
+def get_synonyms(word, pos):
+    # initialize the list with wordnet synonyms
     syn_list = []
+    for lemma in wn.synset(word + "." + pos + ".01").lemmas():
+        syn = lemma.name()
+        if syn != word:
+            syn_list.append(syn)
+
+    # add conceptNet's Synonyms
     rel_list = ["Synonym", "IsA"]
     for rel in rel_list:
         obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + word.replace(" ", "_") + '&rel=/r/' + rel).json()
@@ -194,7 +211,7 @@ def get_synonym(word):
     return syn_list
 
 # return a list of locations that the noun possibly located according to ConceptNet's relations ("at location", "locate near", "part of"
-def get_loca(noun):
+def get_locations_cn(noun):
     loca_list = []
     rel_list = ["AtLocation", "LocatedNear", "PartOf"]
     for rel in rel_list:
@@ -205,6 +222,21 @@ def get_loca(noun):
                 if syn not in loca_list and syn != noun:
                     loca_list.append(syn)
     return loca_list
+
+def combine_verbs_ls(model, noun):
+    # initialize both list
+    w2v_ls = get_verbs_for_noun(model, noun)
+    cn_ls = get_verbs_cn(noun)
+
+    # pass word2vec list to the combine list
+    combine_ls = w2v_ls
+    for element in cn_ls:
+        verb = element[0]
+        if verb not in combine_ls:
+            combine_ls.append(verb)
+
+    return combine_ls
+
 
 def main():
     model = load_model(DEFAULT_MODEL_PATH)
@@ -224,16 +256,22 @@ def main():
 
     # run samples
 
-    # get_verbs_for_noun tests
-    print("-" * 5, "get_verbs_for_noun function tests", "-" * 5)
+    # get_verb_cn tests compare with get_verbs_for_noun tests
+    print("-" * 5, "obtain verbs tests", "-" * 5)
     for noun in test_nouns:
-        print(noun, ":", get_verbs_for_noun(model, noun))
-    print()
+        print(noun, ":")
+        print("ConceptNet:", get_verbs_cn(noun))
+        print("word2vec result:", get_verbs_for_noun(model, noun))
+        print("combine version", combine_verbs_ls(model, noun))
+        print()
 
-    # get_adjectives_for_noun tests
-    print("-" * 5, "get_adjectives_for_noun function tests", "-" * 5)
+    # get_adjectives_cn compare with get_adjectives_for_noun tests
+    print("-" * 5, "obtain adjetcives tests", "-" * 5)
     for noun in test_nouns:
-        print(noun, ":", get_adjectives_for_noun(model, noun))
+        print(noun, ":")
+        print("ConceptNet:", get_adjectives_cn(noun))
+        print("word2vec result:", get_adjectives_for_noun(model, noun))
+        print()
 
     # possible_actions tests
     for sentence in sentences:
@@ -250,7 +288,17 @@ def main():
     # get_used_for tests
     print("-" * 5, "get_used_for test", "-" * 5)
     for noun in test_nouns:
-        print(get_used_for(noun))
+        print(get_verbs_cn(noun))
+
+    # get_synonyms tests
+    print("-" * 5, "obtain synonyms tests", "-" * 5)
+    for noun in test_nouns:
+        print(noun, ":", get_synonyms(noun, 'n')[:10])
+
+    # get_locations_cn tests
+    print("-" * 5, "obtain locations tests", "-" * 5)
+    for noun in test_nouns:
+        print(noun, ":", get_locations_cn(noun)[:10])
 
     toc = time.time()
     print("total time spend:", toc - tic, "s")
