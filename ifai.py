@@ -35,8 +35,8 @@ def load_model(model_path=None):
 def get_ave_sigma(model, canons):
     sigma = 0
     for pair in canons:
-        v, n = pair.split()
-        sigma += model.word_vec(v) - model.word_vec(n)
+        a, b = pair.split()
+        sigma += model.word_vec(a) - model.word_vec(b)
     ave_sigma = (1 / len(canons)) * sigma
     return ave_sigma
 
@@ -87,7 +87,7 @@ def get_verbs_for_noun(model, noun):
 
 # return a list of adjectives that describe the given noun
 def get_adjectives_for_noun(model, noun):
-    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/noun_adj_pair.txt')]))
+    canons = list(filter(None, [line.rstrip() for line in open('./word_lists/adj_noun_pair.txt')]))
     sigma = get_ave_sigma(model, canons)
     model_adj = model.most_similar([sigma, noun], [], topn=10)
     word2vec_adj = []
@@ -95,6 +95,17 @@ def get_adjectives_for_noun(model, noun):
         word2vec_adj.append(adj[0])
     return word2vec_adj
 
+
+def get_verbs_with_adjective(model, adj):
+    canons = []
+    with open('word_lists/verb_adj_pair.txt') as fd:
+        canons.extend(line.strip() for line in fd.readlines())
+    sigma = get_ave_sigma(model, canons)
+    model_verbs = model.most_similar([sigma, adj], [], topn = 10)
+    word2vec_verb = []
+    for verb in model_verbs:
+        word2vec_verb.append(verb[0])
+    return word2vec_verb
 
 # return a list of possible actions by compute affordable actions on nouns in the given sentence
 def possible_actions(model, sentence):
@@ -247,6 +258,7 @@ def main():
     # prepare samples
     test_nouns = ["book", "sword", "horse", "key"]
     test_verbs = ["climb", "use", "open", "lift", "kill", "murder", "drive", "ride", "cure", "type", "sing"]
+    test_adjectives = ["sharp", "heavy", "hot", "iced", "clean", "long"]
     s = "Soon you’ll be able to send and receive money from friends and family right in Messages."
     s1 = "This is an open field west of a white house, with a boarded front door. There is a small mailbox here."
     s2 = "This is a forest, with trees in all directions around you."
@@ -272,6 +284,11 @@ def main():
         print("ConceptNet:", get_adjectives_cn(noun))
         print("word2vec result:", get_adjectives_for_noun(model, noun))
         print()
+
+    # get_verbs_with_adjective tests
+    print("-" * 5, "get_verbs_with_adjective", "-" * 5)
+    for adj in test_adjectives:
+        print(adj, ":", get_verbs_with_adjective(model, adj))
 
     # possible_actions tests
     for sentence in sentences:
