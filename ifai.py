@@ -7,6 +7,8 @@ from nltk.corpus import wordnet as wn
 import numpy as np
 import spacy
 import requests
+from PyDictionary import PyDictionary
+
 
 # download wordnet
 nltk.download('wordnet')
@@ -92,8 +94,18 @@ def w2v_get_adjectives_for_noun(model, noun):
     sigma = get_ave_sigma(model, canons)
 
     model_adjectives = model.most_similar([sigma, noun], [], topn=10)
-    adjectives = [adj[0] for adj in model_adjectives]
+    adjectives = [adj[0] for adj in model_adjectives if wn.morphy(adj[0], wn.ADJ)]
     return adjectives
+
+def w2v_get_nouns_for_adjective(model, noun):
+    canons = []
+    with open('./word_lists/noun_adj_pair.txt') as fd:
+        canons.extend(line.strip() for line in fd.readlines())
+    sigma = get_ave_sigma(model, canons)
+
+    model_nouns = model.most_similar([sigma, noun], [], topn=10)
+    nouns = [noun[0] for noun in model_nouns if wn.morphy(noun[0], wn.NOUN)]
+    return nouns
 
 # return a list of verbs that the given adj can be used in the way
 def w2v_get_verbs_for_adjective(model, adj):
@@ -194,22 +206,27 @@ def cn_get_locations(noun):
 
 # return a list of synonym of the noun from ConceptNet and wordnet (not ideal)
 def get_synonyms(word, pos):
-    # initialize the list with wordnet synonyms
+    dictionary = PyDictionary()
     syn_list = []
+
+    # add wordnet synonyms to the list
     for lemma in wn.synset(word + "." + pos + ".01").lemmas():
         syn = lemma.name()
         if syn != word:
             syn_list.append(syn)
 
-    # add conceptNet's Synonyms
-    rel_list = ["Synonym", "IsA"]
-    for rel in rel_list:
-        obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + word.replace(" ", "_") + '&rel=/r/' + rel).json()
-        for edge in obj["edges"]:
-            if edge["end"]["language"] == 'en':
-                syn = edge["end"]["label"]
-                if syn not in syn_list and syn != word:
-                    syn_list.append(syn)
+    # add theraurus synonyms
+    syn_list = syn_list + dictionary.synonym(word)
+
+    # # conceptNet's Synonyms
+    # rel_list = ["Synonym", "IsA"]
+    # for rel in rel_list:
+    #     obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + word.replace(" ", "_") + '&rel=/r/' + rel).json()
+    #     for edge in obj["edges"]:
+    #         if edge["end"]["language"] == 'en':
+    #             syn = edge["end"]["label"]
+    #             if syn not in syn_list and syn != word:
+    #                 syn_list.append(syn)
     return syn_list
 
 
