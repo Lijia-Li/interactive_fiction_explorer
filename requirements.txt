@@ -5,3 +5,5 @@ nltk
 numpy
 pandas
 spacy
+sense2vec
+PyDictionary
