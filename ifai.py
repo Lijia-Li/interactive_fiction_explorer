@@ -285,15 +285,15 @@ def get_noun_from_text(text):
 def possible_actions(model, text):
     """return a list of possible actions that can be done to nouns in the text"""
     nouns = get_noun_from_text(text)
-    action_pair = []
 
     # rank nouns in terms of manipulatbility [most manipulative-----less manipulative]
     sorted_list = w2v_rank_manipulability(model, nouns)
 
-    # combine verbs with the noun
+    # for each noun, find relevant verbs and add them to the list of results
+    action_pair = []
     for word in sorted_list:
         verbs = get_verbs_for_noun(model, word[0])
-        action_pair = [(verb + " " + word[0]) for verb in verbs]
+        action_pair.extend([(verb + " " + word[0]) for verb in verbs])
 
     return action_pair
 
