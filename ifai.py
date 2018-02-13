@@ -7,14 +7,15 @@ from nltk.corpus import wordnet as wn
 import numpy as np
 import spacy
 import requests
+# import sense2vec
 from PyDictionary import PyDictionary
 
 
 # download wordnet
 nltk.download('wordnet')
 
-
 DEFAULT_MODEL_PATH = 'models/GoogleNews-vectors-negative300.bin'
+
 
 def load_model(model_path=None):
     if model_path is None:
@@ -32,10 +33,11 @@ def load_model(model_path=None):
     return model
 
 
-### HELPER FUNCTIONS ###
+# Utility Functions
 
-# helper function that compute the average sigma (vector difference of word pair) of a list of given canon pairs
+
 def get_ave_sigma(model, canons):
+    """compute the average sigma (vector difference of a word pair) of a list of canonical pairs"""
     sigma = 0
     for pair in canons:
         a, b = pair.split()
@@ -43,17 +45,22 @@ def get_ave_sigma(model, canons):
     ave_sigma = (1 / len(canons)) * sigma
     return ave_sigma
 
-# return a list of lemmatized verbs that the noun can afford
-def w2v_get_verbs_for_noun(model, noun):
-    # load word lists
-    canons = []
-    with open('word_lists/verb_noun_pair.txt') as fd:
-        canons.extend(line.strip() for line in fd.readlines())
-    verb_list = []
-    with open('./word_lists/top_1000_verbs.txt') as fd:
-        verb_list.extend(line.strip() for line in fd.readlines())
 
-    # prepare tools
+def prepare_list_from_file(file_name):
+    """extract a list of word(s) from a file"""
+    with open(file_name) as fd:
+        canons = [line.strip() for line in fd.readlines()]
+    return canons
+
+
+def w2v_get_verbs_for_noun(model, noun):
+    """return a list of lemmatized verbs that the noun can afford from a given word2vec model"""
+    # load word lists
+    canons = prepare_list_from_file('word_lists/verb_noun_pair.txt')
+    verb_list = prepare_list_from_file('./word_lists/top_1000_verbs.txt')
+
+
+    # compute average sigma
     sigma = get_ave_sigma(model, canons)
 
     # list of common used verbs
@@ -86,53 +93,64 @@ def w2v_get_verbs_for_noun(model, noun):
 
     return affordant_verbs
 
-# return a list of adjectives that describe the given noun
+
 def w2v_get_adjectives_for_noun(model, noun):
-    canons = []
-    with open('./word_lists/adj_noun_pair.txt') as fd:
-        canons.extend(line.strip() for line in fd.readlines())
+    """return a list of adjectives that describe the given noun"""
+    # get average sigma of the adj_noun canonical pairs
+    canons = prepare_list_from_file('./word_lists/adj_noun_pair.txt')
     sigma = get_ave_sigma(model, canons)
 
+    # extract adjectives from w2v model with the sigma
     model_adjectives = model.most_similar([sigma, noun], [], topn=10)
     adjectives = [adj[0] for adj in model_adjectives if wn.morphy(adj[0], wn.ADJ)]
+
     return adjectives
 
+
 def w2v_get_nouns_for_adjective(model, noun):
-    canons = []
-    with open('./word_lists/noun_adj_pair.txt') as fd:
-        canons.extend(line.strip() for line in fd.readlines())
+    """return a list of nouns that can be describes in adjectives way"""
+    # get average sigma of the noun_adj canonical pairs
+    canons = prepare_list_from_file('./word_lists/noun_adj_pair.txt')
     sigma = get_ave_sigma(model, canons)
 
+    # extract nouns from w2v model with the sigma
     model_nouns = model.most_similar([sigma, noun], [], topn=10)
     nouns = [noun[0] for noun in model_nouns if wn.morphy(noun[0], wn.NOUN)]
+
     return nouns
 
-# return a list of verbs that the given adj can be used in the way
+
 def w2v_get_verbs_for_adjective(model, adj):
-    canons = []
-    with open('word_lists/verb_adj_pair.txt') as fd:
-        canons.extend(line.strip() for line in fd.readlines())
+    """return a list of verbs that the given adj can be used in such way"""
+    # get average sigma of the verb_adj canonical pairs
+    canons = prepare_list_from_file('word_lists/verb_adj_pair.txt')
     sigma = get_ave_sigma(model, canons)
 
+    # extract verbs from w2v model with the sigma
     model_verbs = model.most_similar([sigma, adj], [], topn = 10)
     verbs = [verb[0] for verb in model_verbs]
     return verbs
 
-# get possible tools to realize the intended action
+
 def w2v_get_tools_for_verb(model, verb):
-    canons = []
-    with open('./word_lists/verb_noun_pair.txt') as fd:
-        canons.extend(line.strip() for line in fd.readlines())
+    """get possible tools to realize the intended action"""
+    # get average sigma of the verb_noun canonical pairs
+    canons = prepare_list_from_file('./word_lists/verb_noun_pair.txt')
     sigma = get_ave_sigma(model, canons)
 
+    # extract verbs from w2v model with the sigma
     model_tools = model.most_similar([verb], [sigma], topn=10)
     tools = [tool[0] for tool in model_tools]
     return tools
 
-# rank inputs nouns from most manipulative to least manipulative
+
 def w2v_rank_manipulability(model, nouns):
+    """rank inputs nouns from most manipulative to least manipulative"""
+    # anchor x_axis by using forest & tree vector difference
     x_axis = model.word_vec("forest") - model.word_vec("tree")
     dic = {}
+
+    # map the noun's vectors to the x_axis and spit out a list from small to big
     for noun in nouns:
         if noun not in dic:
             vec = model.word_vec(noun)
@@ -140,10 +158,10 @@ def w2v_rank_manipulability(model, nouns):
     sorted_list = sorted(dic.items(), key=(lambda kv: kv[1]))
     return sorted_list
 
-# get "capable of" & "used for" relations from ConceptNet, return a list of possible verbs with weight
+
 def cn_get_verbs_for_noun(noun):
+    """return a list of possible verbs with weight for the given noun from conceptNet"""
     v_dic = {}
-    wnl = nltk.stem.WordNetLemmatizer()
 
     # query conceptNet
     rel_list = ["CapableOf", "UsedFor"]
@@ -151,9 +169,8 @@ def cn_get_verbs_for_noun(noun):
         obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun + '&rel=/r/' + rel).json()
         for edge in obj["edges"]:
 
-            # todo split get the possible verb
+            # get the verb from the edge
             verb = edge["end"]["label"].split()[0]
-            verb = wnl.lemmatize(verb, 'v')
 
             # use wordnet to assert verb (can be a verb)
             if wn.morphy(verb, wn.VERB):
@@ -168,31 +185,31 @@ def cn_get_verbs_for_noun(noun):
     sorted_list = sorted(v_dic.items(), key=(lambda kv: kv[1]), reverse=True)
     return sorted_list[:10]
 
-# return a list of adj best describe the noun from ConceptNet with "has property" Relation
+
 def cn_get_adjectives_for_noun(noun):
-    v_dic = {}
-    wnl = nltk.stem.WordNetLemmatizer()
+    """return a list of adj best describe the noun from ConceptNet"""
+    adj_dic = {}
 
     rel_list = ["HasProperty"]
     for rel in rel_list:
         obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun + '&rel=/r/' + rel).json()
         for edge in obj["edges"]:
 
-            # todo get the possible adj
-            word = edge["end"]["label"]
-            # word = wnl.lemmatize(word, 'adj')
+            # get the adj version of the word
+            word = wn.morphy(edge["end"]["label"], wn.ADJ)
 
             # add to dic with weight
-            if word not in v_dic:
-                v_dic[word] = edge["weight"]
-            if word in v_dic:
-                v_dic[word] += edge["weight"]
+            if word not in adj_dic:
+                adj_dic[word] = edge["weight"]
+            if word in adj_dic:
+                adj_dic[word] += edge["weight"]
 
-    sorted_list = sorted(v_dic.items(), key=(lambda kv: kv[1]), reverse=True)
+    sorted_list = sorted(adj_dic.items(), key=(lambda kv: kv[1]), reverse=True)
     return sorted_list
 
-# return a list of locations that the noun possibly located according to ConceptNet's relations ("at location", "locate near", "part of"
+
 def cn_get_locations(noun):
+    """return a list of locations that the noun possibly locate in"""
     loca_list = []
     rel_list = ["AtLocation", "LocatedNear", "PartOf"]
     for rel in rel_list:
@@ -204,8 +221,9 @@ def cn_get_locations(noun):
                     loca_list.append(syn)
     return loca_list
 
-# return a list of synonym of the noun from ConceptNet and wordnet (not ideal)
+
 def get_synonyms(word, pos):
+    """return a list of synonym of the noun from PyDictionary and wordnet"""
     dictionary = PyDictionary()
     syn_list = []
 
@@ -218,66 +236,65 @@ def get_synonyms(word, pos):
     # add theraurus synonyms
     syn_list = syn_list + dictionary.synonym(word)
 
-    # # conceptNet's Synonyms
-    # rel_list = ["Synonym", "IsA"]
-    # for rel in rel_list:
-    #     obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + word.replace(" ", "_") + '&rel=/r/' + rel).json()
-    #     for edge in obj["edges"]:
-    #         if edge["end"]["language"] == 'en':
-    #             syn = edge["end"]["label"]
-    #             if syn not in syn_list and syn != word:
-    #                 syn_list.append(syn)
     return syn_list
 
 
-
-### MAIN FUNCTIONS ###
-
-def get_verbs_for_noun (model, noun):
-    # initialize both list
-    w2v_ls = w2v_get_verbs_for_noun(model, noun)
-    cn_ls = cn_get_verbs_for_noun(noun)
-
-    # pass word2vec list to the combine list
+def combine_list (w2v_ls, cn_ls):
+    """combine word2vec list and knowledge base list"""
     combine_ls = w2v_ls
     for element in cn_ls:
-        verb = element[0]
-        if verb not in combine_ls:
-            combine_ls.append(verb)
+        word = element[0]
+        if word not in combine_ls:
+            combine_ls.append(word)
 
+    return combine_ls
+
+
+# MAIN FUNCTIONS
+
+
+def get_verbs_for_noun (model, noun):
+    """get list of verb that the noun can afford"""
+    w2v_ls = w2v_get_verbs_for_noun(model, noun)
+    cn_ls = cn_get_verbs_for_noun(noun)
+    combine_ls = combine_list (w2v_ls, cn_ls)
+    
     return combine_ls
 
 def get_adjectives_for_noun (model, noun):
-    # initialize both list
+    """get list of adj that describe the noun"""
     w2v_ls = w2v_get_adjectives_for_noun(model, noun)
     cn_ls = cn_get_adjectives_for_noun(noun)
-
-    # pass word2vec list to the combine list
-    combine_ls = w2v_ls
-    for element in cn_ls:
-        adj = element[0]
-        if adj not in combine_ls:
-            combine_ls.append(adj)
+    combine_ls = combine_list(w2v_ls, cn_ls)
 
     return combine_ls
 
-# return a list of possible actions by compute affordable actions on nouns in the given sentence
-def possible_actions(model, sentence):
-    # prepare tools
+def get_noun_from_text(text):
+    """extract noun from given text"""
+    
+    # tokenize the given text with SpaCy
     nlp = spacy.load('en')
-    doc = nlp(sentence)
+    doc = nlp(text)
+
+    # collect lemmatized nouns from tokens
     wnl = nltk.stem.WordNetLemmatizer()
-    l = []
+    nouns = [wnl.lemmatize(chunk.root.text) for chunk in doc.noun_chunks]
+
+    return nouns
+
+def possible_actions(model, text):
+    """return a list of possible actions that can be done to nouns in the text"""
+    nouns = get_noun_from_text(text)
     action_pair = []
 
-    for chunk in doc.noun_chunks:
-        word = wnl.lemmatize(chunk.root.text)
-        l.append(word)
-    sorted_list = w2v_rank_manipulability(model, l)
+    # rank nouns in terms of manipulatbility [most manipulative-----less manipulative]
+    sorted_list = w2v_rank_manipulability(model, nouns)
+
+    # combine verbs with the noun
     for word in sorted_list:
         verbs = get_verbs_for_noun(model, word[0])
-        for verb in verbs:
-            action_pair.append(verb + " " + word[0])
+        action_pair = [(verb + " " + word[0]) for verb in verbs]
+
     return action_pair
 
 def main():
