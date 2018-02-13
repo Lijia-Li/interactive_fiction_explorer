@@ -1,0 +1,17 @@
+digraph {
+    rankdir=LR
+    noun -> noun [label="filter?"]
+    noun -> noun [label="synonym"]
+    verb -> verb [label="synonym"]
+    adjective -> adjective [label="synonym?"]
+    sentence -> noun [label="SpaCy"]
+    noun -> object [style="dotted"]
+    object -> verb [label="embedding,\nConceptNet"]
+    object -> adjective [label="embedding,\nConceptNet"]
+    adjective -> tool [label="embedding,\nConceptNet"]
+    adjective -> verb [label="embedding,\nKB?"]
+    noun -> tool [style="dotted"]
+    tool -> verb [label="embedding,\nConceptNet"]
+    verb -> tool [label="embedding,\nConceptNet"]
+    
+}
