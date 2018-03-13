@@ -13,13 +13,12 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 model = gensim.models.KeyedVectors.load_word2vec_format('./model/GoogleNews-vectors-negative300.bin', binary=True)
 # model = gensim.models.KeyedVectors.load_word2vec_format('./model/freebase-vectors-skipgram1000-en.bin', binary=True)
 
-
 # sample gensim KeyValue function usage:
 print(model.word_vec("office"))
 print(model.doesnt_match("man woman child kitchen".split()))
 
 print(model.most_similar("man"))
-print(model.most_similar(positive =['girl', 'father'], negative = ['boy'], topn=3))
+print(model.most_similar(positive=['girl', 'father'], negative=['boy'], topn=3))
 print(model.most_similar_to_given('music', ['water', 'sound', 'backpack', 'mouse']))
 
 print(model.similarity("breakfast", "lunch"))
@@ -42,18 +41,14 @@ sentence = "This is an open field west of a white house, with a boarded front do
 nlp = spacy.load('en')
 doc = nlp(sentence)
 for token in doc:
-    print(token.text, token.lemma_, token.pos_, token.tag_, token.dep_,
-          token.shape_, token.is_alpha, token.is_stop)
-
-
+    print(token.text, token.lemma_, token.pos_, token.tag_, token.dep_, token.shape_, token.is_alpha, token.is_stop)
 
 more_examples = ["he his she", "big bigger bad", "going went being"]
 for example in more_examples:
     a, b, x = example.split()
     predicted = model.most_similar([x, b], [a])[0][0]
     # print(predicted)
-    print ('{} : {} :: {} : [{}]'.format(a, b, x, predicted))
-
+    print('{} : {} :: {} : [{}]'.format(a, b, x, predicted))
 
 # end timing and print out needed time
 end = time.time()

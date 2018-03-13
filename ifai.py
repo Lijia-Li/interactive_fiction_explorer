@@ -59,7 +59,6 @@ def w2v_get_verbs_for_noun(model, noun):
     canons = prepare_list_from_file('word_lists/verb_noun_pair.txt')
     verb_list = prepare_list_from_file('./word_lists/top_1000_verbs.txt')
 
-
     # compute average sigma
     sigma = get_ave_sigma(model, canons)
 
@@ -127,7 +126,7 @@ def w2v_get_verbs_for_adjective(model, adj):
     sigma = get_ave_sigma(model, canons)
 
     # extract verbs from w2v model with the sigma
-    model_verbs = model.most_similar([sigma, adj], [], topn = 10)
+    model_verbs = model.most_similar([sigma, adj], [], topn=10)
     verbs = [verb[0] for verb in model_verbs]
     return verbs
 
@@ -181,7 +180,6 @@ def cn_get_verbs_for_noun(noun):
                 if verb in v_dic:
                     v_dic[verb] += edge["weight"]
 
-
     sorted_list = sorted(v_dic.items(), key=(lambda kv: kv[1]), reverse=True)
     return sorted_list[:10]
 
@@ -213,7 +211,8 @@ def cn_get_locations(noun):
     loca_list = []
     rel_list = ["AtLocation", "LocatedNear", "PartOf"]
     for rel in rel_list:
-        obj = requests.get('http://api.conceptnet.io/query?node=/c/en/' + noun.replace(" ", "_") + '&rel=/r/' + rel).json()
+        url = 'http://api.conceptnet.io/query?node=/c/en/' + noun.replace(" ", "_") + '&rel=/r/' + rel
+        obj = requests.get(url).json()
         for edge in obj["edges"]:
             if edge["end"]["language"] == 'en':
                 syn = edge["end"]["label"]
@@ -239,7 +238,7 @@ def get_synonyms(word, pos):
     return syn_list
 
 
-def combine_list (w2v_ls, cn_ls):
+def combine_list(w2v_ls, cn_ls):
     """combine word2vec list and knowledge base list"""
     combine_ls = w2v_ls
     for element in cn_ls:
@@ -253,15 +252,16 @@ def combine_list (w2v_ls, cn_ls):
 # MAIN FUNCTIONS
 
 
-def get_verbs_for_noun (model, noun):
+def get_verbs_for_noun(model, noun):
     """get list of verb that the noun can afford"""
     w2v_ls = w2v_get_verbs_for_noun(model, noun)
     cn_ls = cn_get_verbs_for_noun(noun)
-    combine_ls = combine_list (w2v_ls, cn_ls)
-    
+    combine_ls = combine_list(w2v_ls, cn_ls)
+
     return combine_ls
 
-def get_adjectives_for_noun (model, noun):
+
+def get_adjectives_for_noun(model, noun):
     """get list of adj that describe the noun"""
     w2v_ls = w2v_get_adjectives_for_noun(model, noun)
     cn_ls = cn_get_adjectives_for_noun(noun)
@@ -269,9 +269,10 @@ def get_adjectives_for_noun (model, noun):
 
     return combine_ls
 
+
 def get_noun_from_text(text):
     """extract noun from given text"""
-    
+
     # tokenize the given text with SpaCy
     nlp = spacy.load('en')
     doc = nlp(text)
@@ -280,7 +281,10 @@ def get_noun_from_text(text):
     wnl = nltk.stem.WordNetLemmatizer()
     nouns = [wnl.lemmatize(chunk.root.text) for chunk in doc.noun_chunks]
 
+    nouns = filter_nouns(nouns)
+
     return nouns
+
 
 def possible_actions(model, text):
     """return a list of possible actions that can be done to nouns in the text"""
@@ -296,6 +300,7 @@ def possible_actions(model, text):
         action_pair.extend([(verb + " " + word[0]) for verb in verbs])
 
     return action_pair
+
 
 def main():
     model = load_model(DEFAULT_MODEL_PATH)
