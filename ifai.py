@@ -252,7 +252,13 @@ def combine_list(w2v_ls, cn_ls):
 # MAIN FUNCTIONS
 
 
-def get_verbs_for_noun(model, noun):
+def get_verb_for_adj(model, adj):
+    """get list of verb that can be caused by the adj(e.g.: sharp -> cut)"""
+
+    return w2v_get_verbs_for_adjective(model, adj)
+
+
+def get_verbs_for_noun (model, noun):
     """get list of verb that the noun can afford"""
     w2v_ls = w2v_get_verbs_for_noun(model, noun)
     cn_ls = cn_get_verbs_for_noun(noun)
@@ -261,7 +267,7 @@ def get_verbs_for_noun(model, noun):
     return combine_ls
 
 
-def get_adjectives_for_noun(model, noun):
+def get_adjectives_for_noun (model, noun):
     """get list of adj that describe the noun"""
     w2v_ls = w2v_get_adjectives_for_noun(model, noun)
     cn_ls = cn_get_adjectives_for_noun(noun)
@@ -302,6 +308,15 @@ def possible_actions(model, text):
     return action_pair
 
 
+# # todo add in potential tools that can be used for the action (e.g.: cut string with shard)
+# def possible_tools(model, verb):
+#     tools = w2v_get_tools_for_verb(model, verb)
+#
+#     action_with_tool = []
+#     for tool in tools:
+#
+#
+
 def main():
     model = load_model(DEFAULT_MODEL_PATH)
 
@@ -319,59 +334,6 @@ def main():
     s4 = "You open the mailbox, revealing a small leaflet."
     sentences = [s, s1, s2, s3, s4]
 
-    print(possible_actions(model, s3))
-
-    # run samples
-
-    # get_verb_cn tests compare with get_verbs_for_noun tests
-    print("-" * 5, "obtain verbs tests", "-" * 5)
-    for noun in test_nouns:
-        print(noun, ":")
-        print("ConceptNet:", cn_get_verbs_for_noun(noun))
-        print("word2vec result:", w2v_get_verbs_for_noun(model, noun))
-        print("combine version", get_verbs_for_noun(model, noun))
-        print()
-
-    # get_adjectives_cn compare with get_adjectives_for_noun tests
-    print("-" * 5, "obtain adjetcives tests", "-" * 5)
-    for noun in test_nouns:
-        print(noun, ":")
-        print("ConceptNet:", cn_get_adjectives_for_noun(noun))
-        print("word2vec result:", w2v_get_adjectives_for_noun(model, noun))
-        print("combine version", get_adjectives_for_noun(model, noun))
-        print()
-
-    # possible_actions tests
-    for sentence in sentences:
-        print()
-        print(sentence)
-        print(possible_actions(model, sentence))
-
-    # get_verbs_with_adjective tests
-    print("-" * 5, "get_verbs_with_adjective", "-" * 5)
-    for adj in test_adjectives:
-        print(adj, ":", w2v_get_verbs_for_adjective(model, adj))
-
-    # get_tools_for_verb tests
-    print("-" * 5, "get_tools_for_verb function test", "-" * 5)
-    for verb in test_verbs:
-        print()
-        print(verb, ":", w2v_get_tools_for_verb(model, verb))
-
-    # cn_get_verbs_for_noun tests
-    print("-" * 5, "cn_get_verbs_for_noun test", "-" * 5)
-    for noun in test_nouns:
-        print(cn_get_verbs_for_noun(noun))
-
-    # get_synonyms tests
-    print("-" * 5, "obtain synonyms tests", "-" * 5)
-    for noun in test_nouns:
-        print(noun, ":", get_synonyms(noun, 'n')[:10])
-
-    # cn_get_locations tests
-    print("-" * 5, "obtain locations tests", "-" * 5)
-    for noun in test_nouns:
-        print(noun, ":", cn_get_locations(noun)[:10])
 
     toc = time.time()
     print("total time spend:", toc - tic, "s")
