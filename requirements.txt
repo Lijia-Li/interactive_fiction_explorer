@@ -1,5 +1,5 @@
 bokeh
-gensim
+gensim==3.2.0
 jupyter
 nltk
 numpy
