@@ -10,11 +10,14 @@ import requests
 # import sense2vec
 from PyDictionary import PyDictionary
 
+from kb import KnowledgeFile, Query, Node, U, V
 
 # download wordnet
 nltk.download('wordnet')
 
 DEFAULT_MODEL_PATH = 'models/GoogleNews-vectors-negative300.bin'
+
+UMBEL = KnowledgeFile('kbs/umbel-concepts-typology.rdfsqlite')
 
 
 def load_model(model_path=None):
@@ -247,6 +250,47 @@ def combine_list(w2v_ls, cn_ls):
             combine_ls.append(word)
 
     return combine_ls
+
+
+def filter_nouns(nouns):
+
+    def get_all_ancestors(kb, relation, concept):
+        triples = set()
+        visited = set()
+        queue = [U(concept, 'umbel-rc')]
+        kwargs = {('rdfs__' + relation): V('parent')}
+        query = Query(V('child', **kwargs))
+        while queue:
+            child = queue.pop(0)
+            if str(child) in visited:
+                continue
+            visited.add(str(child))
+            results = kb.query(query, child=child).splitlines()
+            triples.update(results)
+            for triple in results:
+                parent = triple.split()[2]
+                if str(parent) not in visited:
+                    queue.append(Node.from_str(parent))
+        return triples
+
+    # create superclass to check against
+    solid_tangible_thing = U('SolidTangibleThing', 'umbel-rc')
+    # open Umbel
+    result = []
+    for noun in nouns:
+        # find the corresponding concept
+        variations = [noun, noun.lower(), noun.capitalize()]
+        for variation in variations:
+            # find all ancestors
+            triples = get_all_ancestors(UMBEL, 'subClassOf', variation)
+            superclasses = set()
+            for triple in triples:
+                superclasses.add(triple.split(' ')[2])
+            # add to result if appropriate
+            if str(solid_tangible_thing) in superclasses:
+                result.append(noun)
+                break
+    return result
 
 
 # MAIN FUNCTIONS
