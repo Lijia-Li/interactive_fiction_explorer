@@ -148,8 +148,13 @@ def w2v_get_tools_for_verb(model, verb):
 
 def w2v_rank_manipulability(model, nouns):
     """rank inputs nouns from most manipulative to least manipulative"""
-    # anchor x_axis by using forest & tree vector difference
-    x_axis = model.word_vec("forest") - model.word_vec("tree")
+    # # anchor x_axis by using forest & tree vector difference
+    # x_axis = model.word_vec('forest')- model.word_vec('tree')
+
+    # with a list of composed of vector
+    composed_of_pair = prepare_list_from_file('./word_lists/composed_of.txt')
+    x_axis = get_ave_sigma(model, composed_of_pair)
+
     dic = {}
 
     # map the noun's vectors to the x_axis and spit out a list from small to big
@@ -329,7 +334,7 @@ def get_noun_from_text(text):
 
     # collect lemmatized nouns from tokens
     wnl = nltk.stem.WordNetLemmatizer()
-    nouns = [wnl.lemmatize(chunk.root.text) for chunk in doc.noun_chunks]
+    nouns = [wnl.lemmatize(chunk.root.text).lower() for chunk in doc.noun_chunks]
 
     nouns = filter_nouns(nouns)
 
