@@ -334,9 +334,9 @@ def get_noun_from_text(text):
 
     # collect lemmatized nouns from tokens
     wnl = nltk.stem.WordNetLemmatizer()
-    nouns = [wnl.lemmatize(chunk.root.text).lower() for chunk in doc.noun_chunks]
+    nouns = set([wnl.lemmatize(chunk.root.text).lower() for chunk in doc.noun_chunks])
 
-    nouns = filter_nouns(nouns)
+    nouns = filter_nouns(list(nouns))
 
     return nouns
 
